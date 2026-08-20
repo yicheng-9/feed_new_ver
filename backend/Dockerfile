@@ -1,38 +1,26 @@
-#
-# Multi-stage build for backend API and worker.
-#
-# Build:
-#   docker build -f backend/Dockerfile -t feedsystem-backend:api --target api .
-#   docker build -f backend/Dockerfile -t feedsystem-backend:worker --target worker .
-#
+# 构建阶段
+FROM golang:1.24-alpine AS builder
+WORKDIR /build
 
-ARG GO_VERSION=1.24.5
-
-FROM golang:${GO_VERSION} AS build
-WORKDIR /src/backend
-
-COPY backend/go.mod backend/go.sum ./
+# 复制依赖文件（当前目录已是 backend/）
+COPY go.mod go.sum ./
 RUN go mod download
 
-COPY backend/ ./
+# 复制所有源码
+COPY . .
 
-ENV CGO_ENABLED=0
-RUN go build -trimpath -ldflags="-s -w" -o /out/api ./cmd
-RUN go build -trimpath -ldflags="-s -w" -o /out/worker ./cmd/worker
+# 编译（入口在 ./cmd）
+RUN go build -ldflags="-w -s" -o app ./cmd
 
-FROM alpine:3.21 AS base
-RUN apk add --no-cache ca-certificates tzdata && adduser -D -H -s /sbin/nologin app
+# 运行阶段
+FROM alpine:latest
 WORKDIR /app
-COPY --from=build /src/backend/configs ./configs
-RUN mkdir -p ./.run/uploads && chown -R app:app /app
-USER app
 
-FROM base AS api
-COPY --from=build /out/api /app/api
+# 复制二进制
+COPY --from=builder /build/app .
+
+# 复制配置文件
+COPY configs ./configs
+
 EXPOSE 8080
-ENTRYPOINT ["/app/api"]
-
-FROM base AS worker
-COPY --from=build /out/worker /app/worker
-ENTRYPOINT ["/app/worker"]
-
+CMD ["./app"]
