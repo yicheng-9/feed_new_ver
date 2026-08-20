@@ -45,6 +45,7 @@ func getDatabaseConfigFromEnv() config.DatabaseConfig {
 	}
 }
 func main() {
+	log.Println("========== NEW VERSION DEPLOYED ==========")
 	// 加载配置（用于 Server、Redis、RabbitMQ 等其他配置）
 	log.Printf("Loading config from configs/config.yaml")
 	cfg, err := config.Load("configs/config.yaml")
