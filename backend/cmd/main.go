@@ -7,13 +7,12 @@ import (
 	apphttp "feedsystem_video_go/internal/http"
 	rabbitmq "feedsystem_video_go/internal/middleware/rabbitmq"
 	rediscache "feedsystem_video_go/internal/middleware/redis"
-	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"time"
 )
-func getDatabaseConfigFromEnv() config.DatabaseConfig {
+func getDBConfigFromEnv() config.DatabaseConfig {
 	host := os.Getenv("MYSQLHOST")
 	if host == "" {
 		host = "localhost"
@@ -45,26 +44,19 @@ func getDatabaseConfigFromEnv() config.DatabaseConfig {
 	}
 }
 func main() {
-	log.Println("========== NEW VERSION DEPLOYED ==========")
-	// 加载配置（用于 Server、Redis、RabbitMQ 等其他配置）
+	log.Println("===== NEW VERSION WITH ENV OVERRIDE =====")
+
+	// 加载配置
 	log.Printf("Loading config from configs/config.yaml")
 	cfg, err := config.Load("configs/config.yaml")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// 直接从环境变量构建数据库 DSN，忽略 cfg.Database
-	dbDSN := getDBDSNFromEnv()
-	log.Printf("Database DSN: %s", dbDSN) // 打印但注意隐藏密码，生产上可去掉
-
-	// 使用 dbDSN 连接数据库
-	// 你需要修改 db.NewDB 函数，使其接受 DSN 字符串而非 config.DatabaseConfig
-	// 或者我们临时在 db 包中添加一个 NewDBWithDSN 函数。
-	// 为了快速解决，我们修改 db.NewDB 函数，使其接受 DSN（见下文修改 db.go）
-	
-	// 由于我们不想改动太多，我们直接修改 db.NewDB 函数让它接受 DSN，或在这里构造 config.DatabaseConfig 结构体覆盖 cfg.Database
-	// 更简单：将 cfg.Database 赋值为从环境变量读取的值
-	cfg.Database = getDatabaseConfigFromEnv()
+	// 强制使用环境变量覆盖数据库配置
+	cfg.Database = getDBConfigFromEnv()
+	log.Printf("Using database config: host=%s port=%d user=%s dbname=%s",
+		cfg.Database.Host, cfg.Database.Port, cfg.Database.User, cfg.Database.DBName)
 
 	// 连接数据库
 	sqlDB, err := db.NewDB(cfg.Database)
