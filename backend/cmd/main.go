@@ -11,8 +11,39 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"net/url"
 )
 func getDBConfigFromEnv() config.DatabaseConfig {
+	// 1. 优先使用 MYSQL_URL（Railway 一定会提供）
+	if mysqlURL := os.Getenv("MYSQL_URL"); mysqlURL != "" {
+		// 格式: mysql://user:pass@host:port/dbname
+		parsed, err := url.Parse(mysqlURL)
+		if err == nil {
+			cfg := config.DatabaseConfig{}
+			if parsed.User != nil {
+				cfg.User = parsed.User.Username()
+				if pass, ok := parsed.User.Password(); ok {
+					cfg.Password = pass
+				}
+			}
+			cfg.Host = parsed.Hostname()
+			if port := parsed.Port(); port != "" {
+				if p, err := strconv.Atoi(port); err == nil {
+					cfg.Port = p
+				}
+			}
+			if len(parsed.Path) > 1 {
+				cfg.DBName = parsed.Path[1:]
+			}
+			// 如果解析成功，直接返回
+			if cfg.Host != "" && cfg.User != "" {
+				return cfg
+			}
+		}
+		// 如果解析失败，继续尝试分开变量
+	}
+
+	// 2. 回退到分开变量（用于本地开发或其他平台）
 	host := os.Getenv("MYSQLHOST")
 	if host == "" {
 		host = "localhost"
