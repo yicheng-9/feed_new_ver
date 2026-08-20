@@ -16,6 +16,10 @@ import (
 
 func SetRouter(db *gorm.DB, cache *rediscache.Client, rmq *rabbitmq.RabbitMQ) *gin.Engine {
 	r := gin.Default()
+	// 在你的路由设置（比如 SetupRouter 函数）中添加：
+	r.GET("/", func(c *gin.Context) {
+	    c.JSON(200, gin.H{"message": "Backend is running successfully!"})
+	})
 	r.Static("/static", "./.run/uploads")
 	// account
 	accountRepository := account.NewAccountRepository(db)
